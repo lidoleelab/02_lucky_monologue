@@ -1,0 +1,36 @@
+body {
+  margin: 0;
+  background: #ffffff;
+  font-family: monospace;
+}
+
+.stage {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+}
+
+#qr-main {
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 300px;
+  height: 300px;
+  object-fit: contain;
+}
+
+#terminal {
+  position: absolute;
+  top: calc(42% + 165px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 300px;
+  height: 40px;
+  color: #000;
+  font-size: 12px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
