@@ -1,7 +1,7 @@
 const qrMain = document.getElementById("qr-main");
 const terminal = document.getElementById("terminal");
 
-const AUDIO_INTERVAL_MS = 120;
+const AUDIO_INTERVAL_MS = 180;
 const MAX_ACTIVE_AUDIOS = 8;
 
 let interval = null;
