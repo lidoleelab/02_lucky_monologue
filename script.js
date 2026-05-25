@@ -4,6 +4,11 @@ const terminal = document.getElementById("terminal");
 const AUDIO_INTERVAL_MS = 80;
 const VOICE_OVERLAP_COUNT = 4;
 
+let interval = null;
+let active = false;
+let current = null;
+let audioUnlocked = false;
+
 const words = [
   "프왕송", "와트만", "공동연구", "인격신", "공간", "시간", "하늘", "무감각", "무공포", "침묵",
   "사랑", "고통", "불", "불길", "지옥", "미란다", "속단", "금물", "미완성", "블레스",
@@ -25,6 +30,10 @@ function qrFileName(index, word) {
 function voiceFileName(index, word) {
   const num = String(index + 1).padStart(2, "0");
   return `assets/voice/${num}_${word}.mp3`;
+}
+
+function rand(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
 }
 
 const items = words.map((word, index) => {
@@ -50,23 +59,39 @@ const items = words.map((word, index) => {
   };
 });
 
-function rand(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-let current = rand(items);
-let interval = null;
-let hovering = false;
-
+current = rand(items);
 qrMain.src = current.qrSrc;
 terminal.innerText = "";
 
-function playWord(item) {
-  const audio = item.audioPool[item.audioIndex];
+function unlockAudio() {
+  if (audioUnlocked) return;
 
+  audioUnlocked = true;
+
+  items.forEach(item => {
+    item.audioPool.forEach(audio => {
+      audio.muted = true;
+      audio.play()
+        .then(() => {
+          audio.pause();
+          audio.currentTime = 0;
+          audio.muted = false;
+        })
+        .catch(() => {
+          audio.muted = false;
+        });
+    });
+  });
+}
+
+function playWord(item) {
+  if (!audioUnlocked) return;
+
+  const audio = item.audioPool[item.audioIndex];
   item.audioIndex = (item.audioIndex + 1) % item.audioPool.length;
 
   audio.currentTime = 0;
+  audio.volume = 0.85;
   audio.play().catch(() => {});
 }
 
@@ -79,25 +104,60 @@ function updateFast() {
   playWord(current);
 }
 
-qrMain.addEventListener("mouseenter", () => {
-  hovering = true;
+function startOutput() {
+  unlockAudio();
 
+  if (active) return;
+
+  active = true;
   updateFast();
 
   interval = setInterval(updateFast, AUDIO_INTERVAL_MS);
-});
+}
 
-qrMain.addEventListener("mouseleave", () => {
-  hovering = false;
+function stopOutput() {
+  active = false;
 
-  clearInterval(interval);
-  interval = null;
+  if (interval) {
+    clearInterval(interval);
+    interval = null;
+  }
 
   terminal.innerText = "";
-});
+}
+
+/* Desktop */
+qrMain.addEventListener("mouseenter", startOutput);
+qrMain.addEventListener("mouseleave", stopOutput);
 
 qrMain.addEventListener("mousemove", () => {
-  if (!hovering) return;
-
+  if (!active || !current) return;
   terminal.innerText = `decoded: ${current.word}`;
+});
+
+/* Mobile */
+qrMain.addEventListener("touchstart", (e) => {
+  e.preventDefault();
+  startOutput();
+}, { passive: false });
+
+qrMain.addEventListener("touchmove", (e) => {
+  e.preventDefault();
+  if (!active) startOutput();
+}, { passive: false });
+
+qrMain.addEventListener("touchend", (e) => {
+  e.preventDefault();
+  stopOutput();
+}, { passive: false });
+
+qrMain.addEventListener("touchcancel", stopOutput);
+
+/* Fallback click */
+qrMain.addEventListener("click", () => {
+  if (active) {
+    stopOutput();
+  } else {
+    startOutput();
+  }
 });
