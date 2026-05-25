@@ -2,7 +2,7 @@ const qrMain = document.getElementById("qr-main");
 const terminal = document.getElementById("terminal");
 
 const AUDIO_INTERVAL_MS = 180;
-const MAX_ACTIVE_AUDIOS = 8;
+const MAX_ACTIVE_AUDIOS = 6;
 
 let interval = null;
 let active = false;
@@ -33,32 +33,18 @@ function voiceFileName(index, word) {
   return `assets/voice/${num}_${word}.mp3`;
 }
 
+const items = words.map((word, index) => ({
+  word,
+  qrSrc: qrFileName(index, word),
+  voiceSrc: voiceFileName(index, word)
+}));
+
 function rand(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-const items = words.map((word, index) => {
-  const img = new Image();
-  img.src = qrFileName(index, word);
-
-  return {
-    word,
-    qrSrc: img.src,
-    voiceSrc: voiceFileName(index, word)
-  };
-});
-
-current = rand(items);
-qrMain.src = current.qrSrc;
-terminal.innerText = "";
-
 function unlockAudio() {
-  if (audioUnlocked) return;
   audioUnlocked = true;
-
-  const silent = new Audio();
-  silent.muted = true;
-  silent.play().catch(() => {});
 }
 
 function trimActiveAudios() {
@@ -80,7 +66,6 @@ function playWord(item) {
 
   const audio = new Audio(item.voiceSrc);
   audio.volume = 0.85;
-
   activeAudios.push(audio);
 
   audio.play().catch(() => {});
@@ -117,14 +102,15 @@ function stopOutput() {
   terminal.innerText = "";
 }
 
+current = rand(items);
+qrMain.src = current.qrSrc;
+terminal.innerText = "";
+
+/* desktop */
 qrMain.addEventListener("mouseenter", startOutput);
 qrMain.addEventListener("mouseleave", stopOutput);
 
-qrMain.addEventListener("mousemove", () => {
-  if (!active || !current) return;
-  terminal.innerText = `decoded: ${current.word}`;
-});
-
+/* mobile */
 qrMain.addEventListener("touchstart", (e) => {
   e.preventDefault();
   startOutput();
@@ -142,10 +128,8 @@ qrMain.addEventListener("touchend", (e) => {
 
 qrMain.addEventListener("touchcancel", stopOutput);
 
+/* fallback */
 qrMain.addEventListener("click", () => {
-  if (active) {
-    stopOutput();
-  } else {
-    startOutput();
-  }
+  if (active) stopOutput();
+  else startOutput();
 });
