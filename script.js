@@ -1,13 +1,14 @@
 const qrMain = document.getElementById("qr-main");
 const terminal = document.getElementById("terminal");
 
-const AUDIO_INTERVAL_MS = 80;
-const VOICE_OVERLAP_COUNT = 4;
+const AUDIO_INTERVAL_MS = 120;
+const MAX_ACTIVE_AUDIOS = 8;
 
 let interval = null;
 let active = false;
 let current = null;
 let audioUnlocked = false;
+let activeAudios = [];
 
 const words = [
   "프왕송", "와트만", "공동연구", "인격신", "공간", "시간", "하늘", "무감각", "무공포", "침묵",
@@ -40,22 +41,10 @@ const items = words.map((word, index) => {
   const img = new Image();
   img.src = qrFileName(index, word);
 
-  const audioPool = [];
-
-  for (let i = 0; i < VOICE_OVERLAP_COUNT; i++) {
-    const audio = new Audio();
-    audio.src = voiceFileName(index, word);
-    audio.preload = "auto";
-    audio.volume = 0.85;
-    audio.load();
-    audioPool.push(audio);
-  }
-
   return {
     word,
     qrSrc: img.src,
-    audioPool,
-    audioIndex: 0
+    voiceSrc: voiceFileName(index, word)
   };
 });
 
@@ -65,33 +54,35 @@ terminal.innerText = "";
 
 function unlockAudio() {
   if (audioUnlocked) return;
-
   audioUnlocked = true;
 
-  items.forEach(item => {
-    item.audioPool.forEach(audio => {
-      audio.muted = true;
-      audio.play()
-        .then(() => {
-          audio.pause();
-          audio.currentTime = 0;
-          audio.muted = false;
-        })
-        .catch(() => {
-          audio.muted = false;
-        });
-    });
-  });
+  const silent = new Audio();
+  silent.muted = true;
+  silent.play().catch(() => {});
+}
+
+function trimActiveAudios() {
+  activeAudios = activeAudios.filter(audio => !audio.ended);
+
+  while (activeAudios.length > MAX_ACTIVE_AUDIOS) {
+    const old = activeAudios.shift();
+    if (old) {
+      old.pause();
+      old.src = "";
+    }
+  }
 }
 
 function playWord(item) {
   if (!audioUnlocked) return;
 
-  const audio = item.audioPool[item.audioIndex];
-  item.audioIndex = (item.audioIndex + 1) % item.audioPool.length;
+  trimActiveAudios();
 
-  audio.currentTime = 0;
+  const audio = new Audio(item.voiceSrc);
   audio.volume = 0.85;
+
+  activeAudios.push(audio);
+
   audio.play().catch(() => {});
 }
 
@@ -126,7 +117,6 @@ function stopOutput() {
   terminal.innerText = "";
 }
 
-/* Desktop */
 qrMain.addEventListener("mouseenter", startOutput);
 qrMain.addEventListener("mouseleave", stopOutput);
 
@@ -135,7 +125,6 @@ qrMain.addEventListener("mousemove", () => {
   terminal.innerText = `decoded: ${current.word}`;
 });
 
-/* Mobile */
 qrMain.addEventListener("touchstart", (e) => {
   e.preventDefault();
   startOutput();
@@ -153,7 +142,6 @@ qrMain.addEventListener("touchend", (e) => {
 
 qrMain.addEventListener("touchcancel", stopOutput);
 
-/* Fallback click */
 qrMain.addEventListener("click", () => {
   if (active) {
     stopOutput();
